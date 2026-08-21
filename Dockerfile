@@ -9,8 +9,10 @@ RUN test -n "$CPG_SHA256" && test -n "$CPG_URL" \
  && echo "$CPG_SHA256  /tmp/cpg.zip" | sha256sum -c - \
  && unzip -q /tmp/cpg.zip -d /opt/cpg
 
-FROM python:3.12-slim
+FROM python:3.12-slim AS base
 RUN useradd --system --uid 10001 --create-home sidecar
+
+FROM base AS runtime
 COPY requirements.txt /tmp/
 RUN pip install --no-cache-dir -r /tmp/requirements.txt && playwright install --with-deps chromium
 COPY --from=cpg /opt/cpg /opt/cpg

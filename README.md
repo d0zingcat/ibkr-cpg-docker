@@ -5,6 +5,10 @@ Gateway (CPG). It downloads only a pinned official CPG archive verified with a
 SHA-256, keeps the raw CPG loopback-only, and exposes a narrow GET-only guard
 on port 8080.
 
+Every push and pull request builds the image foundation in GitHub Actions. A
+`vX.Y.Z` tag builds the complete `runtime` image, attaches an SBOM and
+provenance, and publishes its immutable GHCR digest.
+
 This is not an Interactive Brokers product and automated authentication is not
 officially supported by IBKR. CPG has no refresh token that replaces daily
 authentication; use it only if your account policy permits it. See the [IBKR

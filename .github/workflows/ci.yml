@@ -22,3 +22,16 @@ jobs:
           grep -q 'USER 10001' Dockerfile
           grep -q 'read_only: true' docker-compose.example.yml
           ! grep -q '^    ports:' docker-compose.example.yml
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # This target is deliberately independent of the licensed CPG archive,
+      # so every pull request verifies the Docker image foundation without
+      # downloading mutable third-party binaries. Tag releases build `runtime`.
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: base
+          push: false
+          tags: ibkr-cpg-docker:ci
