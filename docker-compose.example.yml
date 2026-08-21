@@ -1,7 +1,7 @@
 services:
   ibkr-cpg:
     # Always replace this sample digest with a published immutable digest.
-    image: ghcr.io/d0zingcat/ibkr-cpg-docker:v0.1.0@sha256:REPLACE_WITH_PUBLISHED_DIGEST
+    image: ghcr.io/d0zingcat/ibkr-cpg-docker:SHORT_COMMIT_SHA@sha256:REPLACE_WITH_PUBLISHED_DIGEST
     read_only: true
     tmpfs: [/tmp]
     cap_drop: [ALL]

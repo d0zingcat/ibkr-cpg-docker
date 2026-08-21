@@ -14,11 +14,13 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - id: sha
+        run: echo "short=$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
       - uses: docker/build-push-action@v6
         id: build
         with:
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/ibkr-cpg-docker:${{ github.ref_name }}
+          tags: ghcr.io/${{ github.repository_owner }}/ibkr-cpg-docker:${{ steps.sha.outputs.short }}
           sbom: true
           provenance: mode=max
       - uses: actions/attest-build-provenance@v2
