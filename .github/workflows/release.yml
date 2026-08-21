@@ -18,11 +18,11 @@ jobs:
         id: build
         with:
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/ibkr-cpg-sidecar:${{ github.ref_name }}
+          tags: ghcr.io/${{ github.repository_owner }}/ibkr-cpg-docker:${{ github.ref_name }}
           sbom: true
           provenance: mode=max
       - uses: actions/attest-build-provenance@v2
         with:
-          subject-name: ghcr.io/${{ github.repository_owner }}/ibkr-cpg-sidecar
+          subject-name: ghcr.io/${{ github.repository_owner }}/ibkr-cpg-docker
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true

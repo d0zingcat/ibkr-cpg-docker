@@ -22,7 +22,7 @@ rejected or remain internal.
 
 Create a private named volume, then run the initializer attached to a terminal:
 
-`docker run --rm -it -v ibkr-secrets:/run/ibkr-secrets ghcr.io/d0zingcat/ibkr-cpg-sidecar@sha256:... python /opt/sidecar/init_secrets.py`
+`docker run --rm -it -v ibkr-secrets:/run/ibkr-secrets ghcr.io/d0zingcat/ibkr-cpg-docker@sha256:... python /opt/sidecar/init_secrets.py`
 
 It prompts without echo for username, password, and TOTP, and writes mode 0600
 files. The image never accepts those values through environment variables.
