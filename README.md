@@ -5,6 +5,9 @@ Gateway (CPG). It downloads only a pinned official CPG archive verified with a
 SHA-256, keeps the raw CPG loopback-only, and exposes a narrow GET-only guard
 on port 8080.
 
+The first pinned archive is the official 2023-04-25 distribution, SHA-256
+`2f2d380b2f9424520ff5f9c11fe45e82ef39459329ac056258a3274bea6f76f9`.
+
 Every push and pull request builds the image foundation in GitHub Actions. A
 `vX.Y.Z` tag builds the complete `runtime` image, attaches an SBOM and
 provenance, and publishes its immutable GHCR digest.
