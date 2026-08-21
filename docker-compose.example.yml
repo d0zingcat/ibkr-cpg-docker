@@ -1,0 +1,21 @@
+services:
+  ibkr-cpg:
+    # Always replace this sample digest with a published immutable digest.
+    image: ghcr.io/d0zingcat/ibkr-cpg-sidecar:v0.1.0@sha256:REPLACE_WITH_PUBLISHED_DIGEST
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    volumes:
+      - ibkr-secrets:/run/ibkr-secrets:ro
+    expose: ["8080"]
+    networks: [broker-internal, ibkr-egress]
+  client:
+    image: curlimages/curl:8.12.1
+    command: ["sleep", "infinity"]
+    networks: [broker-internal]
+volumes:
+  ibkr-secrets:
+networks:
+  broker-internal: {internal: true}
+  ibkr-egress: {}

@@ -1,0 +1,23 @@
+name: ci
+on: [pull_request, push]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: pip install pytest && pytest
+      - run: python -m compileall sidecar
+      - uses: zricethezav/gitleaks-action@v2
+      - uses: apache/skywalking-eyes@main
+        with: {config: .licenserc.yaml}
+  container-policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          ! grep -R --line-number -E 'IBKR_(USERNAME|PASSWORD|TOTP)=' . --exclude-dir=.git
+          grep -q 'USER 10001' Dockerfile
+          grep -q 'read_only: true' docker-compose.example.yml
+          ! grep -q '^    ports:' docker-compose.example.yml
