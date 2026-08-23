@@ -44,7 +44,11 @@ class Guard(BaseHTTPRequestHandler):
         conn = http.client.HTTPSConnection(target.hostname, target.port or 443, timeout=20,
                                            context=ssl._create_unverified_context())
         try:
-            conn.request("GET", parsed.path, headers={"Accept": "application/json"})
+            conn.request(
+                "GET",
+                parsed.path,
+                headers={"Accept": "application/json", "User-Agent": "ibkr-cpg-guard/1.0"},
+            )
             response = conn.getresponse(); body = response.read()
             self.send_response(response.status)
             self.send_header("Content-Type", response.getheader("Content-Type", "application/json"))
@@ -55,4 +59,4 @@ class Guard(BaseHTTPRequestHandler):
         finally: conn.close()
 
 if __name__ == "__main__":
-    ThreadingHTTPServer(("0.0.0.0", 8080), Guard).serve_forever()
+    ThreadingHTTPServer((os.getenv("GUARD_HOST", "0.0.0.0"), 8080), Guard).serve_forever()
