@@ -26,14 +26,16 @@ Only these requests reach CPG: `GET /v1/api/iserver/auth/status`,
 Queries, every non-GET method, `/tickle`, login, and all trading endpoints are
 rejected or remain internal.
 
-## Secrets
+## Authentication
 
-Create a private named volume, then run the initializer attached to a terminal:
+By default the sidecar does not automate authentication. Open the locally
+published CPG login page in a browser and complete the daily IBKR Mobile
+approval there. This is the authentication method supported by IBKR for Client
+Portal Gateway.
 
-`docker run --rm -it -v ibkr-secrets:/run/ibkr-secrets ghcr.io/d0zingcat/ibkr-cpg-docker@sha256:... python /opt/sidecar/init_secrets.py`
-
-It prompts without echo for username, password, and TOTP, and writes mode 0600
-files. The image never accepts those values through environment variables.
+The optional legacy automated-login hook is disabled by default and requires
+`IBKR_MANUAL_LOGIN=0`; it is not supported by IBKR and should not be used with
+IBKR Mobile push or challenge/response authentication.
 
 ## Releases
 
