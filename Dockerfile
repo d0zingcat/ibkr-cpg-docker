@@ -20,7 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends openjdk-21-jre-
  && playwright install --with-deps chromium
 COPY --from=cpg /opt/cpg /opt/cpg
 COPY sidecar /opt/sidecar
-RUN chmod 0555 /opt/sidecar/*.py && ln -s /opt/sidecar/login.py /usr/local/bin/ibkr-login
+RUN chmod 0555 /opt/sidecar/*.py
 USER 10001
-EXPOSE 8080
+EXPOSE 8080 8081
 ENTRYPOINT ["python", "/opt/sidecar/start.py"]

@@ -8,7 +8,8 @@ services:
     security_opt: [no-new-privileges:true]
     volumes:
       - ibkr-secrets:/run/ibkr-secrets:ro
-    expose: ["8080"]
+    # 8081 is token-protected login control, scoped to this private network.
+    expose: ["8080", "8081"]
     networks: [broker-internal, ibkr-egress]
   client:
     image: curlimages/curl:8.12.1

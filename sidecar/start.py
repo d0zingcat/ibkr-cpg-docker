@@ -1,6 +1,12 @@
-"""Start official CPG privately, then the supervisor and public guard."""
+"""Start official CPG privately, then the data guard and private control API."""
 from __future__ import annotations
 import os, subprocess, sys
+from pathlib import Path
+
+# ``start.py`` is executed by path in the image, so include /opt (the parent
+# of the ``sidecar`` package) before importing sibling package modules.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from sidecar.control import serve
 
 command = os.getenv("CPG_START_COMMAND", "/opt/cpg/bin/run.sh")
 # The official ``run.sh`` uses relative ``dist`` and ``build/lib`` classpath
@@ -13,11 +19,9 @@ cpg_env = os.environ | {
     )
 }
 cpg = subprocess.Popen([command, "root/conf.yaml"], cwd="/opt/cpg", env=cpg_env)
-manual_login = os.getenv("IBKR_MANUAL_LOGIN", "1") != "0"
-supervisor = None if manual_login else subprocess.Popen([sys.executable, "/opt/sidecar/supervisor.py"])
+control = serve()
 try:
     os.execv(sys.executable, [sys.executable, "/opt/sidecar/guard.py"])
 finally:
-    if supervisor is not None:
-        supervisor.terminate()
+    control.shutdown()
     cpg.terminate()
