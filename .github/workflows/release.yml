@@ -18,9 +18,13 @@ jobs:
         id: meta
         with:
           images: ghcr.io/${{ github.repository_owner }}/ibkr-cpg-docker
-          # Publish the release tag itself (e.g. v0.1.4) so deployment
-          # configuration can use a clear, immutable-at-release reference.
-          tags: type=ref,event=tag
+          # Every release is addressable by its immutable release tag and
+          # short commit SHA; latest follows the newest release for convenient
+          # non-production deployments.
+          tags: |
+            type=ref,event=tag
+            type=sha,format=short,prefix=
+            type=raw,value=latest
       - uses: docker/build-push-action@v6
         id: build
         with:
