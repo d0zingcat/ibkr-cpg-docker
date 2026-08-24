@@ -26,16 +26,29 @@ Only these requests reach CPG: `GET /v1/api/iserver/auth/status`,
 Queries, every non-GET method, `/tickle`, login, and all trading endpoints are
 rejected or remain internal.
 
-## Authentication
+## Authentication control API
 
-By default the sidecar does not automate authentication. Open the locally
-published CPG login page in a browser and complete the daily IBKR Mobile
-approval there. This is the authentication method supported by IBKR for Client
-Portal Gateway.
+Port `8081` is a separate private control API. It accepts a first-factor
+username/password and drives the local CPG page with Playwright; the account
+holder must approve the IB Key push in the mobile app. It implements no TOTP,
+IB Key challenge-response, password persistence, or background relogin.
 
-The optional legacy automated-login hook is disabled by default and requires
-`IBKR_MANUAL_LOGIN=0`; it is not supported by IBKR and should not be used with
-IBKR Mobile push or challenge/response authentication.
+Every request needs `Authorization: Bearer <control-token>`, where
+`control-token` is a read-only file in `/run/ibkr-secrets` shared only with the
+trusted calling application. The API is intended for the Docker private network
+or a host-loopback SSH tunnel, not public ingress. One attempt can run at a
+time; it expires after five minutes by default (`LOGIN_TIMEOUT_SECONDS`).
+
+```text
+POST /control/v1/login                    {"username":"…","password":"…"} → 202 {"login_id":"…"}
+GET  /control/v1/login/{login_id}          → authenticating | awaiting_approval | authenticated | failed | expired
+POST /control/v1/login/{login_id}/cancel   → closes a pending attempt
+```
+
+Credentials exist only in the HTTP request and the browser worker's memory.
+They are not written to logs, volumes, environment variables, response bodies,
+or error messages. The GET-only `:8080` data guard remains unchanged and
+continues to reject every POST.
 
 ## Releases
 
