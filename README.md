@@ -10,8 +10,7 @@ The first pinned archive is the official 2023-04-25 distribution, SHA-256
 
 Every push and pull request builds the image foundation in GitHub Actions. A
 `vX.Y.Z` release tag builds the complete `runtime` image, attaches an SBOM and
-provenance, and publishes it to GHCR using only the short commit SHA as its
-image tag.
+provenance, and publishes it to GHCR using that same version tag.
 
 This is not an Interactive Brokers product and automated authentication is not
 officially supported by IBKR. CPG has no refresh token that replaces daily
@@ -52,5 +51,5 @@ continues to reject every POST.
 
 ## Releases
 
-Release tags publish GHCR images, SBOM, provenance, and a digest. Deploy using
-the exact `short-sha@sha256:digest` form, never `latest`.
+Release tags publish GHCR images, SBOM, and provenance. Deploy using the exact
+release tag (for example `:v0.1.4`), never `latest`.
