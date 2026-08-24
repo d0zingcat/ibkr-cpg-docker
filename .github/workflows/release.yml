@@ -16,11 +16,11 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - uses: docker/metadata-action@v5
         id: meta
-        env:
-          DOCKER_METADATA_SHORT_SHA_LENGTH: 7
         with:
           images: ghcr.io/${{ github.repository_owner }}/ibkr-cpg-docker
-          tags: type=sha,format=short,prefix=
+          # Publish the release tag itself (e.g. v0.1.4) so deployment
+          # configuration can use a clear, immutable-at-release reference.
+          tags: type=ref,event=tag
       - uses: docker/build-push-action@v6
         id: build
         with:
