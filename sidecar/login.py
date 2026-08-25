@@ -40,17 +40,20 @@ def login(
         browser = playwright.chromium.launch(headless=True)
         context = browser.new_context(ignore_https_errors=True)
         page = context.new_page()
+        stage = "open_login"
         try:
             page.goto(CPG_URL, wait_until="domcontentloaded", timeout=30_000)
+            stage = "submit_first_factor"
             page.get_by_label("Username").fill(username)
             page.get_by_label("Password").fill(password)
-            page.get_by_role("button", name="Log In").click()
+            page.get_by_role("button", name="Log In").click(no_wait_after=True)
 
             # CPG presents the available second-factor devices only after the
             # first factor is submitted.  Select an IB Key push-capable device
             # if it is offered; deliberately never interact with code/card
             # fields.  Some CPG versions proceed straight to the IB Key page,
             # so the absence of a selector is not itself a failure.
+            stage = "find_push_device"
             push_option = page.locator("select option").filter(has_text=PUSH_DEVICE).first
             try:
                 push_option.wait_for(state="attached", timeout=10_000)
@@ -59,9 +62,11 @@ def login(
             else:
                 value = push_option.get_attribute("value")
                 if value:
+                    stage = "submit_push_device"
                     page.locator("select").select_option(value=value)
-                    page.get_by_role("button", name="Log In").click()
+                    page.get_by_role("button", name="Log In").click(no_wait_after=True)
 
+            stage = "await_approval"
             on_waiting()
             while time.monotonic() < deadline:
                 if cancelled():
@@ -75,7 +80,7 @@ def login(
             logger.warning("IBKR login worker failed: reason=approval_timeout")
             return False
         except PlaywrightTimeoutError:
-            logger.warning("IBKR login worker failed: reason=browser_timeout")
+            logger.warning("IBKR login worker failed: reason=browser_timeout stage=%s", stage)
             return False
         finally:
             context.close()
