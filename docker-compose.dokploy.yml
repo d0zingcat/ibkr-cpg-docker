@@ -1,0 +1,38 @@
+name: ibkr-cpg
+
+# Dokploy source-build deployment. The CPG is deliberately a separate service
+# from Goldmachine: only the two containers join the shared internal network.
+services:
+  ibkr-cpg:
+    image: ibkr-cpg:source
+    build:
+      context: .
+      dockerfile: Dockerfile
+    pull_policy: build
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    volumes:
+      - ibkr-cpg-secrets:/run/ibkr-secrets:ro
+    # No host ports or public domain: both APIs are private to Goldmachine.
+    expose: ["8080", "8081"]
+    networks: [broker-internal, ibkr-egress]
+
+networks:
+  # This is owned by the Goldmachine Compose project. Keep the actual name
+  # configurable so Dokploy project IDs never become an implicit contract.
+  broker-internal:
+    external: true
+    name: ${GOLDMACHINE_IBKR_NETWORK:-goldmachine-xuhzh4_broker-internal}
+  # The CPG alone has outbound access for IBKR connectivity.
+  ibkr-egress: {}
+
+volumes:
+  # Existing high-privilege token and optional credentials.json; never create
+  # a project-prefixed replacement volume.
+  ibkr-cpg-secrets:
+    external: true
+    name: ${IBKR_CPG_SECRETS_VOLUME:-goldmachine-ibkr-secrets}
