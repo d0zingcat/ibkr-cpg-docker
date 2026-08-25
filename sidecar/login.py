@@ -1,24 +1,28 @@
 """One-shot CPG browser login, with credentials kept only in process memory."""
 from __future__ import annotations
 
-import json
 import logging
 import re
-import ssl
 import time
 from collections.abc import Callable
-from urllib.request import Request, urlopen
 
 CPG_URL = "https://127.0.0.1:5000"
 PUSH_DEVICE = re.compile(r"(?:ib\s*key|mobile|push)", re.IGNORECASE)
 logger = logging.getLogger(__name__)
 
 
-def _authenticated() -> bool:
-    request = Request(f"{CPG_URL}/v1/api/iserver/auth/status", headers={"Accept": "application/json"})
+def _authenticated(page: object) -> bool:
+    """Check via the browser context so CPG session cookies are included."""
     try:
-        with urlopen(request, timeout=5, context=ssl._create_unverified_context()) as response:
-            return bool(json.load(response).get("authenticated"))
+        return bool(page.evaluate("""
+            async () => {
+                const response = await fetch('/v1/api/iserver/auth/status', {
+                    headers: {Accept: 'application/json'},
+                });
+                if (!response.ok) return false;
+                return Boolean((await response.json()).authenticated);
+            }
+        """))
     except Exception:  # Provider details are deliberately not exposed or logged.
         return False
 
@@ -76,7 +80,7 @@ def login(
             while time.monotonic() < deadline:
                 if cancelled():
                     return False
-                if _authenticated():
+                if _authenticated(page):
                     return True
                 if page.get_by_text("denied", exact=False).count() or page.get_by_text("rejected", exact=False).count():
                     logger.warning("IBKR login worker failed: reason=second_factor_rejected")
