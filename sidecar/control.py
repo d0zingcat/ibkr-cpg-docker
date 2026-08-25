@@ -1,10 +1,11 @@
-"""Private, token-protected IBKR Gateway login control API."""
+"""Private, token-protected IBKR Gateway login control API with Challenge-Response support."""
 from __future__ import annotations
 
 import hmac
 import json
 import logging
 import os
+import queue
 import threading
 import time
 import uuid
@@ -28,7 +29,9 @@ class Attempt:
     id: str
     state: State
     created: float
+    challenge: str | None = None
     cancelled: threading.Event = field(default_factory=threading.Event)
+    response_queue: queue.Queue[str] = field(default_factory=queue.Queue)
 
 
 class LoginManager:
@@ -46,10 +49,17 @@ class LoginManager:
         return attempt.id
 
     def _run(self, attempt: Attempt, username: str, password: str) -> None:
-        def waiting() -> None:
+        def waiting(challenge: str | None = None) -> None:
             with self._lock:
                 if self._attempt is attempt and attempt.state == "authenticating":
                     attempt.state = "awaiting_approval"
+                    attempt.challenge = challenge
+
+        def get_response(timeout: float) -> str | None:
+            try:
+                return attempt.response_queue.get(timeout=timeout)
+            except queue.Empty:
+                return None
 
         try:
             authenticated = login(
@@ -57,24 +67,32 @@ class LoginManager:
                 password,
                 timeout=LOGIN_TTL,
                 on_waiting=waiting,
+                get_response=get_response,
                 cancelled=attempt.cancelled.is_set,
             )
         except Exception as exc:
-            # Never log credentials, page contents, or provider responses.
-            # The exception type is enough to diagnose worker/runtime faults.
             logger.warning("IBKR login worker failed: error=%s", type(exc).__name__)
             authenticated = False
         finally:
-            username = password = ""  # drop references; never log them
+            username = password = ""
         with self._lock:
             if self._attempt is attempt and attempt.state not in {"expired", "failed"}:
                 attempt.state = "authenticated" if authenticated else "failed"
 
-    def status(self, attempt_id: str) -> State:
+    def status(self, attempt_id: str) -> tuple[State, str | None]:
         with self._lock:
             if self._attempt is None or not hmac.compare_digest(self._attempt.id, attempt_id):
-                return "expired"
-            return self._state(self._attempt)
+                return "expired", None
+            return self._state(self._attempt), self._attempt.challenge
+
+    def submit_response(self, attempt_id: str, response_code: str) -> bool:
+        with self._lock:
+            if self._attempt is None or not hmac.compare_digest(self._attempt.id, attempt_id):
+                return False
+            if self._attempt.state != "awaiting_approval":
+                return False
+            self._attempt.response_queue.put(response_code)
+            return True
 
     def cancel(self, attempt_id: str) -> State:
         with self._lock:
@@ -83,6 +101,7 @@ class LoginManager:
             if self._attempt.state in {"authenticating", "awaiting_approval"}:
                 self._attempt.state = "expired"
                 self._attempt.cancelled.set()
+                self._attempt.response_queue.put("")  # unblock worker if waiting
             return self._attempt.state
 
     @staticmethod
@@ -147,11 +166,30 @@ class Control(BaseHTTPRequestHandler):
             return
         parts = path.path.split("/")
         if len(parts) == 5 and parts[:4] == ["", "control", "v1", "login"] and _valid_id(parts[4]) and self.command == "GET":
-            self._send(HTTPStatus.OK, {"login_id": parts[4], "state": MANAGER.status(parts[4])})
+            state, challenge = MANAGER.status(parts[4])
+            resp: dict[str, object] = {"login_id": parts[4], "state": state}
+            if challenge:
+                resp["challenge"] = challenge
+            self._send(HTTPStatus.OK, resp)
             return
-        if len(parts) == 6 and parts[:4] == ["", "control", "v1", "login"] and _valid_id(parts[4]) and parts[5] == "cancel" and self.command == "POST":
-            self._send(HTTPStatus.OK, {"login_id": parts[4], "state": MANAGER.cancel(parts[4])})
-            return
+        if len(parts) == 6 and parts[:4] == ["", "control", "v1", "login"] and _valid_id(parts[4]):
+            if parts[5] == "cancel" and self.command == "POST":
+                self._send(HTTPStatus.OK, {"login_id": parts[4], "state": MANAGER.cancel(parts[4])})
+                return
+            if parts[5] == "response" and self.command == "POST":
+                payload = self._json_body()
+                if payload is None:
+                    return
+                code = payload.get("response")
+                if not isinstance(code, str) or not code.strip():
+                    self._send(HTTPStatus.BAD_REQUEST, {"error": "invalid response code"})
+                    return
+                success = MANAGER.submit_response(parts[4], code.strip())
+                if not success:
+                    self._send(HTTPStatus.CONFLICT, {"error": "cannot submit response in current state"})
+                    return
+                self._send(HTTPStatus.ACCEPTED, {"status": "ok"})
+                return
         self._send(HTTPStatus.NOT_FOUND, {"error": "not found"})
 
     def _json_body(self) -> dict[str, object] | None:
