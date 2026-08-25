@@ -62,9 +62,10 @@ def login(
             else:
                 value = push_option.get_attribute("value")
                 if value:
-                    stage = "submit_push_device"
+                    # The CPG front end sends the IB Key push from the select
+                    # change handler.  It then hides the first-factor form, so
+                    # clicking its old Log In button would only time out.
                     page.locator("select").select_option(value=value)
-                    page.get_by_role("button", name="Log In").click(no_wait_after=True)
 
             stage = "await_approval"
             on_waiting()
