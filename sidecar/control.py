@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hmac
 import json
+import logging
 import os
 import threading
 import time
@@ -58,7 +59,10 @@ class LoginManager:
                 on_waiting=waiting,
                 cancelled=attempt.cancelled.is_set,
             )
-        except Exception:
+        except Exception as exc:
+            # Never log credentials, page contents, or provider responses.
+            # The exception type is enough to diagnose worker/runtime faults.
+            logger.warning("IBKR login worker failed: error=%s", type(exc).__name__)
             authenticated = False
         finally:
             username = password = ""  # drop references; never log them
@@ -89,6 +93,7 @@ class LoginManager:
 
 
 MANAGER = LoginManager()
+logger = logging.getLogger(__name__)
 
 
 def _token_valid(header: str | None) -> bool:

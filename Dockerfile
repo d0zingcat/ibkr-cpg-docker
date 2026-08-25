@@ -13,6 +13,7 @@ FROM python:3.12-slim AS base
 RUN useradd --system --uid 10001 --create-home sidecar
 
 FROM base AS runtime
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 COPY requirements.txt /tmp/
 RUN apt-get update && apt-get install -y --no-install-recommends openjdk-21-jre-headless \
  && rm -rf /var/lib/apt/lists/* \
