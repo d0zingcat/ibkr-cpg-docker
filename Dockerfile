@@ -20,6 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends openjdk-21-jre-
  && pip install --no-cache-dir -r /tmp/requirements.txt \
  && playwright install --with-deps chromium
 COPY --from=cpg /opt/cpg /opt/cpg
+RUN mkdir -p /opt/cpg/logs /tmp/vertx-cache && chown -R 10001:10001 /opt/cpg /tmp/vertx-cache
 COPY sidecar /opt/sidecar
 RUN chmod 0555 /opt/sidecar/*.py
 USER 10001

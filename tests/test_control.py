@@ -44,8 +44,11 @@ def test_control_rejects_concurrent_login_and_allows_cancel(tmp_path: Path, monk
     started = threading.Event()
     release = threading.Event()
 
-    def fake_login(*_args, on_waiting, **_kwargs) -> bool:
-        on_waiting(); started.set(); release.wait(2); return False
+    def fake_login(*_args, on_waiting, get_response, **_kwargs) -> bool:
+        on_waiting("123 456")
+        started.set()
+        code = get_response(2.0)
+        return code == "98765432"
 
     monkeypatch.setattr(control, "login", fake_login)
     server = control.ThreadingHTTPServer(("127.0.0.1", 0), control.Control)
@@ -57,7 +60,16 @@ def test_control_rejects_concurrent_login_and_allows_cancel(tmp_path: Path, monk
         login_id = str(body["login_id"])
         assert started.wait(1)
         assert _request(server, "POST", "/control/v1/login", "token-value", {"username": "other", "password": "p"})[0] == 409
-        assert _request(server, "GET", f"/control/v1/login/{login_id}", "token-value")[1]["state"] == "awaiting_approval"
-        assert _request(server, "POST", f"/control/v1/login/{login_id}/cancel", "token-value")[1]["state"] == "expired"
+        status_resp = _request(server, "GET", f"/control/v1/login/{login_id}", "token-value")[1]
+        assert status_resp["state"] == "awaiting_approval"
+        assert status_resp["challenge"] == "123 456"
+
+        # Submit valid response code
+        resp_status, resp_body = _request(server, "POST", f"/control/v1/login/{login_id}/response", "token-value", {"response": "98765432"})
+        assert resp_status == 202
+
+        # Give worker a moment to complete
+        thread.join(0.5)
+        assert _request(server, "GET", f"/control/v1/login/{login_id}", "token-value")[1]["state"] == "authenticated"
     finally:
-        release.set(); server.shutdown(); server.server_close()
+        server.shutdown(); server.server_close()
