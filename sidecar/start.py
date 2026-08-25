@@ -21,7 +21,10 @@ cpg_env = os.environ | {
 cpg = subprocess.Popen([command, "root/conf.yaml"], cwd="/opt/cpg", env=cpg_env)
 control = serve()
 try:
-    os.execv(sys.executable, [sys.executable, "/opt/sidecar/guard.py"])
+    # Do not exec the guard: ``os.execv`` replaces this interpreter and kills
+    # the control server's daemon thread, leaving port 8081 unavailable.
+    guard = subprocess.Popen([sys.executable, "/opt/sidecar/guard.py"])
+    guard.wait()
 finally:
     control.shutdown()
     cpg.terminate()
