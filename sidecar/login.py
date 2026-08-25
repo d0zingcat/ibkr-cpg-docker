@@ -46,7 +46,11 @@ def login(
             stage = "submit_first_factor"
             page.get_by_label("Username").fill(username)
             page.get_by_label("Password").fill(password)
-            page.get_by_role("button", name="Log In").click(no_wait_after=True)
+            # The CPG widget can leave a transparent loading layer over this
+            # button after its static page has loaded.  Dispatch the ordinary
+            # button click without Playwright's visibility/actionability wait;
+            # CPG's own submit handler still performs the SRP first factor.
+            page.locator("form.xyzform-username button").click(force=True, no_wait_after=True, timeout=10_000)
 
             # CPG presents the available second-factor devices only after the
             # first factor is submitted.  Select an IB Key push-capable device
