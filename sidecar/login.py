@@ -2,12 +2,16 @@
 from __future__ import annotations
 
 import json
+import logging
+import re
 import ssl
 import time
 from collections.abc import Callable
 from urllib.request import Request, urlopen
 
 CPG_URL = "https://127.0.0.1:5000"
+PUSH_DEVICE = re.compile(r"(?:ib\s*key|mobile|push)", re.IGNORECASE)
+logger = logging.getLogger(__name__)
 
 
 def _authenticated() -> bool:
@@ -41,6 +45,23 @@ def login(
             page.get_by_label("Username").fill(username)
             page.get_by_label("Password").fill(password)
             page.get_by_role("button", name="Log In").click()
+
+            # CPG presents the available second-factor devices only after the
+            # first factor is submitted.  Select an IB Key push-capable device
+            # if it is offered; deliberately never interact with code/card
+            # fields.  Some CPG versions proceed straight to the IB Key page,
+            # so the absence of a selector is not itself a failure.
+            push_option = page.locator("select option").filter(has_text=PUSH_DEVICE).first
+            try:
+                push_option.wait_for(state="attached", timeout=10_000)
+            except PlaywrightTimeoutError:
+                pass
+            else:
+                value = push_option.get_attribute("value")
+                if value:
+                    page.locator("select").select_option(value=value)
+                    page.get_by_role("button", name="Log In").click()
+
             on_waiting()
             while time.monotonic() < deadline:
                 if cancelled():
@@ -48,10 +69,13 @@ def login(
                 if _authenticated():
                     return True
                 if page.get_by_text("denied", exact=False).count() or page.get_by_text("rejected", exact=False).count():
+                    logger.warning("IBKR login worker failed: reason=second_factor_rejected")
                     return False
                 page.wait_for_timeout(1_000)
+            logger.warning("IBKR login worker failed: reason=approval_timeout")
             return False
         except PlaywrightTimeoutError:
+            logger.warning("IBKR login worker failed: reason=browser_timeout")
             return False
         finally:
             context.close()
